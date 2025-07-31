@@ -32,7 +32,7 @@ export default function Score() {
                   <span className="material-symbols-outlined text-4xl">sports_esports</span>
                 </div> */}
                 <span className="text-2xl md:text-3xl font-bold">Player</span>
-                <span className="text-green-100 mt-2 text-sm md:text-base">Join & compete in events</span>
+                <span className="text-green-100 mt-2 text-sm md:text-base">Create your dummy match</span>
               </div>
             </button>
 

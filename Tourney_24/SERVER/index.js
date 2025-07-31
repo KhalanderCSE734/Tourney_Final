@@ -2,6 +2,8 @@
 
 // import playerRoutes from './Routes/Player/playerRoutes.js';
 import express from 'express';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import 'dotenv/config';
 import cookieParser from 'cookie-parser';
@@ -25,6 +27,12 @@ import PlayerRoute from './Routes/Player/PlayerRoute.js';
 import adminRoutes from './Routes/Admin/AdminRoutes.js';
 
 const app = express();
+
+// ---- HTTP & Socket.IO setup for live visitors ----
+const server = http.createServer(app);
+let io; // will be initialised after CORS options
+// Global counter accessible across controllers
+global.activeConnections = 0;
 const PORT = process.env.PORT || 8000 ;
 
 
@@ -55,6 +63,16 @@ const corsOptions = {
 
 
 app.use(cors(corsOptions));
+
+// Now that corsOptions is defined we can attach Socket.IO
+io = new SocketIOServer(server, { cors: corsOptions });
+
+io.on('connection', (socket) => {
+  global.activeConnections += 1;
+  socket.on('disconnect', () => {
+    global.activeConnections = Math.max(0, global.activeConnections - 1);
+  });
+});
 
 
 app.use(express.json({limit:'10mb'}));
@@ -88,11 +106,11 @@ app.use('/api/organizer/',OrganizerRoute);
 app.use('/api/player',PlayerRoute);
 
 
-app.use('/admin',adminRoutes);
+// Mount admin routes on both new and legacy paths
+app.use("/api/admin", adminRoutes);
+app.use("/admin", adminRoutes);
 
 
-
-
-app.listen(PORT,()=>{
+server.listen(PORT,()=>{
     console.log(`Server Started At PORT ${PORT} :- http://localhost:${PORT}`);
 })

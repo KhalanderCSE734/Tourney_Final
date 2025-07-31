@@ -111,7 +111,7 @@ const AdminLogin = () => {
             </button>
 
             {/* Demo credentials */}
-            <div
+            {/* <div
               className="demo-credentials"
               style={{
                 marginTop: "20px",
@@ -139,7 +139,7 @@ const AdminLogin = () => {
                 </p>
               </div>
 
-              {/* Show current session info */}
+              {/* Show current session info 
               {token && admin && (
                 <div
                   style={{
@@ -168,6 +168,7 @@ const AdminLogin = () => {
                 </div>
               )}
             </div>
+             */}
           </form>
         </div>
       </div>

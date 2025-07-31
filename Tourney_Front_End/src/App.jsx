@@ -81,7 +81,7 @@ import { PlayerContext } from './Contexts/PlayerContext/PlayerContext';
 
 
 
-
+import AnalyticsPage from "./Pages/Admin/pages/analytics/index";
 
 
 
@@ -165,6 +165,7 @@ const App = () => {
           <Route path="add-tournament" element={<TournamentForm />} />
           <Route path="players" element={<PlayersTable />} />
           <Route path="organizations" element={<OrganizationsTable />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
           </Route>
       </Routes>
 

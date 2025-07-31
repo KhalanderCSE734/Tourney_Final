@@ -46,6 +46,8 @@ import {
   Phone,
   Cake,
   Person,
+  CheckCircle,
+  Cancel,
   EmojiEvents,
   MoreVert,
   Refresh,
@@ -98,6 +100,7 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 const PlayersTable = () => {
   // Context
   const { token, admin, isLoggedIn } = useContext(AdminContext);
+
   // For Aadhaar Image Modal
   const [aadhaarModal, setAadhaarModal] = useState({
     open: false,
@@ -158,6 +161,32 @@ const PlayersTable = () => {
     } catch (error) {
       console.error("API Error:", error);
       throw error;
+    }
+  };
+
+  // Approve handler
+  const approvePlayer = async (id) => {
+    try {
+      await apiRequest(`/admin/players/${id}/approve`, { method: "POST" });
+      setPlayers((prev) =>
+        prev.map((p) => (p._id === id ? { ...p, isVerifiedByAdmin: true } : p))
+      );
+      showSnackbar("Player approved successfully", "success");
+    } catch (err) {
+      showSnackbar(err.message || "Error approving player", "error");
+    }
+  };
+
+  // Revoke handler
+  const revokePlayer = async (id) => {
+    try {
+      await apiRequest(`/admin/players/${id}/revoke`, { method: "POST" });
+      setPlayers((prev) =>
+        prev.map((p) => (p._id === id ? { ...p, isVerifiedByAdmin: false } : p))
+      );
+      showSnackbar("Player approval revoked", "info");
+    } catch (err) {
+      showSnackbar(err.message || "Error revoking approval", "error");
     }
   };
 
@@ -798,6 +827,40 @@ const PlayersTable = () => {
                           <Edit fontSize="small" />
                         </IconButton>
                       </Tooltip>
+                      {player.isVerifiedByAdmin ? (
+                        <Tooltip title="Revoke Approval">
+                          <IconButton
+                            size="small"
+                            color="warning"
+                            sx={{
+                              "&:hover": {
+                                backgroundColor: "warning.light",
+                                color: "warning.contrastText",
+                              },
+                            }}
+                            onClick={() => revokePlayer(player._id)}
+                          >
+                            <Cancel fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title="Approve Player">
+                          <IconButton
+                            size="small"
+                            color="success"
+                            sx={{
+                              "&:hover": {
+                                backgroundColor: "success.light",
+                                color: "success.contrastText",
+                              },
+                            }}
+                            onClick={() => approvePlayer(player._id)}
+                          >
+                            <CheckCircle fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+
                       <Tooltip title="Delete Player">
                         <IconButton
                           size="small"
@@ -923,6 +986,7 @@ const PlayersTable = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Aadhaar Image Modal */}
       <Dialog
         open={aadhaarModal.open}
         onClose={() => setAadhaarModal({ open: false, imageUrl: "" })}
@@ -962,6 +1026,7 @@ const PlayersTable = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}

@@ -12,6 +12,11 @@ import {
 import { ChevronLeft } from "@mui/icons-material";
 import SidebarItems from "./SidebarItems";
 
+
+import { useNavigate } from "react-router-dom";
+
+import { MoveLeft } from 'lucide-react';
+
 // Logo section
 const Logo = () => (
   <Box
@@ -43,6 +48,13 @@ const Logo = () => (
 const Sidebar = ({ onClose }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  const navigate = useNavigate();
+
+  const LogOut = async ()=>{
+    localStorage.removeItem('admin-token');
+    navigate('/');
+  }
 
   return (
     <Box
@@ -106,16 +118,16 @@ const Sidebar = ({ onClose }) => {
           bottom: 0,
         }}
       >
+        <Box className='cursor-pointer flex items-center justify-between gap-2.5' onClick={LogOut}>
         <Avatar sx={{ width: 32, height: 32, bgcolor: "secondary.main" }}>
-          U
+          <MoveLeft />
         </Avatar>
-        <Box>
           <Typography variant="body2" fontWeight={600}>
-            User Name
+            Log Out
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          {/* <Typography variant="caption" color="text.secondary">
             Admin
-          </Typography>
+          </Typography> */}
         </Box>
       </Stack>
     </Box>

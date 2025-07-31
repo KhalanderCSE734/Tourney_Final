@@ -1,15 +1,22 @@
 import TournamentCard from "@/Components/Player/TournamentCard";
-// import Navbar from "@/Components/Navbar";
 import { Button } from "@/Components/ui/button";
 import Footer from "@/Components/Footer";
 import Navigation from "@/Components/Navigation";
-import { useState, useEffect, useMemo } from "react";
-import { useContext } from "react";
-// @ts-ignore - Add ignore to bypass TypeScript error for now
-import { PlayerContext } from "../../Contexts/PlayerContext/PlayerContext";
-// @ts-ignore - Add ignore to bypass TypeScript error for now
-import { AppContext } from "../../Contexts/AppContext/AppContext";
+import { useState, useEffect, useMemo, useContext } from "react";
+import { PlayerContext } from "@/Contexts/PlayerContext/PlayerContext";
+import { AppContext } from "@/Contexts/AppContext/AppContext";
 import { toast } from "react-toastify";
+
+// Event type definition
+interface Event {
+  _id: string;
+  name: string;
+  entryFee: number;
+  maxTeams: number;
+  numberOfParticipants: number;
+  eventType: string;
+  matchType: string;
+}
 
 // Tournament type definition
 interface Tournament {
@@ -18,7 +25,7 @@ interface Tournament {
   location: string;
   date: string;
   endDate?: string;
-  ageGroups: string[];
+  events: Event[];
   imageUrl: string;
   sport: string;
   description?: string;
@@ -43,6 +50,44 @@ interface AppContextType {
   selectedLocation: string;
   setSelectedLocation: (value: string) => void;
 }
+
+// Format date with ordinal suffix (e.g., 1st, 2nd, 3rd, 4th)
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const day = date.getDate();
+  const month = date.toLocaleString('en-US', { month: 'long' });
+  const year = date.getFullYear();
+  
+  // Add ordinal suffix
+  const ordinal = (d: number) => {
+    if (d > 3 && d < 21) return `${d}th`;
+    switch (d % 10) {
+      case 1: return `${d}st`;
+      case 2: return `${d}nd`;
+      case 3: return `${d}rd`;
+      default: return `${d}th`;
+    }
+  };
+  
+  return `${ordinal(day)} ${month} ${year}`;
+};
+
+// Parse date from formatted string (e.g., "9th February 2025")
+const parseDate = (dateString: string) => {
+  const months: { [key: string]: number } = {
+    'January': 0, 'February': 1, 'March': 2, 'April': 3, 'May': 4, 'June': 5,
+    'July': 6, 'August': 7, 'September': 8, 'October': 9, 'November': 10, 'December': 11
+  };
+  
+  const parts = dateString.split(' ');
+  if (parts.length < 3) return new Date();
+  
+  const day = parseInt(parts[0].replace(/\D/g, ''));
+  const month = months[parts[1]];
+  const year = parseInt(parts[2]);
+  
+  return new Date(year, month, day);
+};
 
 // Add CSS for animations
 const animationStyles = `
@@ -83,7 +128,7 @@ const animationStyles = `
 `;
 
 const Tournaments = () => {
-  // Cast context to defined type
+  // Get context values
   const { backend_URL } = useContext(PlayerContext) as PlayerContextType;
   const { selectedLocation } = useContext(AppContext) as AppContextType;
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -104,46 +149,114 @@ const Tournaments = () => {
   }, []);
 
   useEffect(() => {
+    // Helper function to fetch event details
+    const fetchEventDetails = async (eventId: string) => {
+      try {
+        const response = await fetch(`${backend_URL}/api/player/events/${eventId}`);
+        if (!response.ok) {
+          console.error(`Failed to fetch event ${eventId}:`, response.status);
+          return null;
+        }
+        const data = await response.json();
+        return data.success ? data.message : null;
+      } catch (error) {
+        console.error(`Error fetching event ${eventId}:`, error);
+        return null;
+      }
+    };
+
     const fetchTournaments = async () => {
       try {
-        // 1. Add credentials to ensure cookies are sent
-        const response = await fetch(`${backend_URL}/api/player/tournaments/public`, {
-          credentials: 'include'
-        });
-
-        // 2. Check if response is ok before trying to parse JSON
+        setLoading(true);
+        const response = await fetch(`${backend_URL}/api/player/tournaments/public`);
+        
         if (!response.ok) {
-          console.error(`Server responded with status ${response.status}: ${response.statusText}`);
-          throw new Error(`Server error: ${response.status}`);
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        // 3. Now try to parse the JSON response
+        const responseText = await response.text();
+        console.log('Raw API Response:', responseText);
         
-        const data = await response.json();
-        console.log(data);
+        let data;
+        try {
+          data = JSON.parse(responseText);
+          console.log('Parsed API Response:', data);
+        } catch (parseError) {
+          console.error('Failed to parse API response:', parseError);
+          throw new Error('Invalid JSON response from server');
+        }
         
         if (data.success) {
-          const formattedTournaments = data.message.map((tournament: any) => {
-            return {
-              id: tournament._id,
-              title: tournament.name,
-              location: tournament.location,
-              date: formatDate(tournament.startDate),
-              endDate: formatDate(tournament.endDate),
-              ageGroups: tournament.events?.map((event: any) => event.ageGroup) || [],
-              imageUrl: tournament.coverImage,
-              sport: tournament.sport,
-              description: tournament.description,
-              status: tournament.status,
-              isVerified: tournament.isVerified,
-            };
-          });
+          console.log('Processing tournaments:', data.message.length, 'tournaments found');
           
+          // Process all tournaments and their events
+          const formattedTournaments = await Promise.all(
+            data.message.map(async (tournament: any) => {
+              console.log(`Processing tournament: ${tournament.name} with ${tournament.events?.length || 0} events`);
+              
+              // If no events, return early with empty events array
+              if (!Array.isArray(tournament.events) || tournament.events.length === 0) {
+                return {
+                  id: tournament._id,
+                  title: tournament.name,
+                  location: tournament.location,
+                  date: formatDate(tournament.startDate),
+                  endDate: formatDate(tournament.endDate),
+                  events: [],
+                  imageUrl: tournament.coverImage,
+                  sport: tournament.sport,
+                  description: tournament.description,
+                  status: tournament.status,
+                  isVerified: tournament.isVerified
+                };
+              }
+              
+              // Fetch details for all events in parallel
+              const eventPromises = tournament.events
+                .filter((eventId: string) => typeof eventId === 'string')
+                .map((eventId: string) => fetchEventDetails(eventId));
+              
+              const eventResults = await Promise.allSettled(eventPromises);
+              const validEvents = eventResults
+                .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled' && result.value !== null)
+                .map(result => result.value);
+              
+              console.log(`Fetched ${validEvents.length} valid events for tournament: ${tournament.name}`, validEvents);
+              
+              // Process event data with proper fallbacks
+              const processedEvents = validEvents.map((event: any) => ({
+                _id: event._id,
+                name: event.name || 'Unnamed Event',
+                entryFee: event.entryFee || 0,
+                maxTeams: event.maxTeams || 0,
+                numberOfParticipants: event.numberOfParticipants || 0,
+                eventType: event.eventType || 'knockout',
+                matchType: event.matchType || 'knockout' // Default to 'knockout' if not provided
+              }));
+              
+              return {
+                id: tournament._id,
+                title: tournament.name,
+                location: tournament.location,
+                date: formatDate(tournament.startDate),
+                endDate: formatDate(tournament.endDate),
+                events: processedEvents,
+                imageUrl: tournament.coverImage,
+                sport: tournament.sport,
+                description: tournament.description,
+                status: tournament.status,
+                isVerified: tournament.isVerified
+              };
+            })
+          );
+          
+          console.log('Formatted tournaments with events:', formattedTournaments);
           setTournaments(formattedTournaments);
         } else {
-          console.error("API returned success:false", data.message);
+          console.error("API returned success:false", data);
           toast.error("Failed to load tournaments");
           // Fallback to demo data
+          console.log('Falling back to demo data');
           setTournaments([
             {
               id: 1,
@@ -151,7 +264,11 @@ const Tournaments = () => {
               location: "Bangalore stadium", 
               date: "5th July 2025",
               endDate: "7th July 2025",
-              ageGroups: ["U-17", "U-19", "U-21"],
+              events: [
+                { _id: '1', name: 'Men\'s Singles', entryFee: 500, maxTeams: 32, numberOfParticipants: 24, eventType: 'knockout', matchType: 'knockout' },
+                { _id: '2', name: 'Women\'s Singles', entryFee: 500, maxTeams: 24, numberOfParticipants: 16, eventType: 'knockout', matchType: 'knockout' },
+                { _id: '3', name: 'Men\'s Doubles', entryFee: 800, maxTeams: 16, numberOfParticipants: 12, eventType: 'round-robin', matchType: 'round-robin' },
+              ],
               imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&h=600&fit=crop",
               sport: "Basketball",
               description: "# State Level Basketball Tournament\n\nJoin us for an exciting basketball tournament featuring teams from across the state. Multiple age categories available.\n\n## Tournament Format\n\n- Group stage followed by knockout rounds\n- Professional referees\n- State-of-the-art facilities\n\n## Prizes\n\nWinners will receive trophies and certificates."
@@ -162,7 +279,11 @@ const Tournaments = () => {
               location: "Chennai stadium",
               date: "15th March 2025", 
               endDate: "17th March 2025",
-              ageGroups: ["U-14", "U-16"],
+              events: [
+                { _id: '4', name: 'U-14 Boys', entryFee: 400, maxTeams: 20, numberOfParticipants: 16, eventType: 'knockout', matchType: 'knockout' },
+                { _id: '5', name: 'U-16 Boys', entryFee: 500, maxTeams: 16, numberOfParticipants: 12, eventType: 'knockout', matchType: 'knockout' },
+                { _id: '6', name: 'U-14 Girls', entryFee: 400, maxTeams: 16, numberOfParticipants: 10, eventType: 'knockout', matchType: 'knockout' },
+              ],
               imageUrl: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800&h=600&fit=crop",
               sport: "Football",
               description: "# District Football Tournament\n\nCompete in our annual district football tournament. Teams from across the region will participate in this prestigious event.\n\n## Tournament Details\n\n- League format followed by playoffs\n- Qualified referees\n- Multiple age categories\n\n## Awards\n\nChampionship trophies and individual awards for outstanding players."
@@ -172,27 +293,37 @@ const Tournaments = () => {
       } catch (error) {
         console.error("Error fetching tournaments:", error);
         toast.error("Error loading tournaments. Using demo data.");
-        // Fallback to demo data
+        // Fallback to demo data with events
         setTournaments([
-  {
-    id: 1,
-    title: "State Level Basketball Tournament",
-    location: "Bangalore stadium", 
-    date: "5th July 2025",
+          {
+            id: 1,
+            title: "State Level Basketball Tournament",
+            location: "Bangalore stadium", 
+            date: "5th July 2025",
             endDate: "7th July 2025",
-    ageGroups: ["U-17", "U-19", "U-21"],
-    imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&h=600&fit=crop",
+            events: [
+              { _id: '1', name: 'Men\'s Singles', entryFee: 500, maxTeams: 32, numberOfParticipants: 24, eventType: 'knockout', matchType: 'knockout' },
+              { _id: '2', name: 'Women\'s Singles', entryFee: 500, maxTeams: 24, numberOfParticipants: 16, eventType: 'knockout', matchType: 'knockout' },
+              { _id: '3', name: 'Men\'s Doubles', entryFee: 800, maxTeams: 16, numberOfParticipants: 12, eventType: 'round-robin', matchType: 'round-robin' },
+              { _id: '4', name: 'Mixed Doubles', entryFee: 700, maxTeams: 20, numberOfParticipants: 12, eventType: 'knockout', matchType: 'knockout' },
+            ],
+            imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&h=600&fit=crop",
             sport: "Basketball",
             description: "# State Level Basketball Tournament\n\nJoin us for an exciting basketball tournament featuring teams from across the state. Multiple age categories available.\n\n## Tournament Format\n\n- Group stage followed by knockout rounds\n- Professional referees\n- State-of-the-art facilities\n\n## Prizes\n\nWinners will receive trophies and certificates."
-  },
-  {
-    id: 2,
-    title: "District Football Tournament",
-    location: "Chennai stadium",
-    date: "15th March 2025", 
+          },
+          {
+            id: 2,
+            title: "District Football Tournament",
+            location: "Chennai stadium",
+            date: "15th March 2025", 
             endDate: "17th March 2025",
-    ageGroups: ["U-14", "U-16"],
-    imageUrl: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800&h=600&fit=crop",
+            events: [
+              { _id: '5', name: 'U-14 Boys', entryFee: 400, maxTeams: 20, numberOfParticipants: 16, eventType: 'knockout', matchType: 'knockout' },
+              { _id: '6', name: 'U-16 Boys', entryFee: 500, maxTeams: 16, numberOfParticipants: 12, eventType: 'knockout', matchType: 'knockout' },
+              { _id: '7', name: 'U-14 Girls', entryFee: 400, maxTeams: 16, numberOfParticipants: 10, eventType: 'knockout', matchType: 'knockout' },
+              { _id: '8', name: 'U-16 Girls', entryFee: 400, maxTeams: 16, numberOfParticipants: 8, eventType: 'knockout', matchType: 'knockout' },
+            ],
+            imageUrl: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800&h=600&fit=crop",
             sport: "Football",
             description: "# District Football Tournament\n\nCompete in our annual district football tournament. Teams from across the region will participate in this prestigious event.\n\n## Tournament Details\n\n- League format followed by playoffs\n- Qualified referees\n- Multiple age categories\n\n## Awards\n\nChampionship trophies and individual awards for outstanding players."
           }
@@ -204,43 +335,6 @@ const Tournaments = () => {
 
     fetchTournaments();
   }, [backend_URL]);
-
-  // Helper function to format date from ISO to "5th July 2025" format
-  const formatDate = (isoDate: string) => {
-    const date = new Date(isoDate);
-    const day = date.getDate();
-    const month = date.toLocaleString('en-US', { month: 'long' });
-    const year = date.getFullYear();
-    
-    // Add ordinal suffix
-    const ordinal = (d: number) => {
-      if (d > 3 && d < 21) return `${d}th`;
-      switch (d % 10) {
-        case 1: return `${d}st`;
-        case 2: return `${d}nd`;
-        case 3: return `${d}rd`;
-        default: return `${d}th`;
-      }
-    };
-    
-    return `${ordinal(day)} ${month} ${year}`;
-  };
-
-  const parseDate = (dateString: string) => {
-    // Convert "9th February 2025" to Date object
-    const months = {
-      'January': 0, 'February': 1, 'March': 2, 'April': 3, 'May': 4, 'June': 5,
-      'July': 6, 'August': 7, 'September': 8, 'October': 9, 'November': 10, 'December': 11
-    };
-    
-    const parts = dateString.split(' ');
-    const day = parseInt(parts[0].replace(/\D/g, ''));
-    
-    const month = months[parts[1] as keyof typeof months];
-    const year = parseInt(parts[2]);
-    
-    return new Date(year, month, day);
-  };
 
   const categorizeDate = (dateString: string) => {
     const tournamentDate = parseDate(dateString);
@@ -270,6 +364,34 @@ const Tournaments = () => {
   const getFilterCount = (filter: 'all' | 'upcoming' | 'ongoing' | 'past') => {
     if (filter === 'all') return tournaments.length;
     return tournaments.filter(tournament => categorizeDate(tournament.date) === filter).length;
+  };
+
+  // Map through filtered tournaments and render TournamentCard for each
+  const renderTournamentCards = () => {
+    return filteredTournaments.map((tournament, index) => {
+      // Ensure events is always an array
+      const tournamentEvents = Array.isArray(tournament.events) ? tournament.events : [];
+      
+      return (
+        <div 
+          key={tournament.id} 
+          className={`${pageLoaded ? 'animate-fade-in card-animation' : 'opacity-0'}`}
+          style={{ animationDelay: `${0.2 + (index * 0.1)}s` }}
+        >
+          <TournamentCard
+            id={tournament.id}
+            title={tournament.title}
+            location={tournament.location}
+            date={tournament.date}
+            endDate={tournament.endDate}
+            events={tournamentEvents}
+            imageUrl={tournament.imageUrl}
+            sport={tournament.sport}
+            description={tournament.description}
+          />
+        </div>
+      );
+    });
   };
 
   return (
@@ -382,27 +504,8 @@ const Tournaments = () => {
               </div>
             </div>
 
-<div className={`grid grid-cols-1 gap-6 max-w-2xl mx-auto ${pageLoaded ? 'animate-fade-in delay-200' : 'opacity-0'}`}>
-              {filteredTournaments.map((tournament, index) => (
-                <div 
-                  key={index}
-                  className={`${pageLoaded ? 'animate-fade-in card-animation' : 'opacity-0'}`} 
-                  style={{ animationDelay: `${0.2 + (index * 0.1)}s` }}
-                >
-                  <TournamentCard
-                  key={index}
-                    id={tournament.id} 
-                    title={tournament.title}
-                    location={tournament.location}
-                    date={tournament.date}
-                    endDate={tournament.endDate}
-                    ageGroups={tournament.ageGroups}
-                    imageUrl={tournament.imageUrl}
-                    sport={tournament.sport}
-                    description={tournament.description}
-                  />
-                </div>
-              ))}
+            <div className={`grid grid-cols-1 gap-6 max-w-2xl mx-auto ${pageLoaded ? 'animate-fade-in delay-200' : 'opacity-0'}`}>
+              {renderTournamentCards()}
             </div>
 
             {filteredTournaments.length === 0 && (

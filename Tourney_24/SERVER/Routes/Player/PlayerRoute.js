@@ -2,7 +2,7 @@ import express from 'express';
 const router = express.Router();
 
 
-import { signUp,verifyEmailWithOTP,login, checkPlayerAuthorization, getCurrentPlayer, logOut, getAllPublicTournaments, getTournamentEvents, getTournamentById, getAllOrganizationsPublic, getTournamentsByOrganization, getEventFixtures, updateFixtureScore, searchFixtureByTeams, checkEmailsRegistered, sendForgotPassOTP, verifyForgotPassOTP, resetPassword, createGroupTeamPlayer, createIndividualTeamPlayer } from '../../Controllers/Players/PlayerController.js';
+import { signUp, verifyEmailWithOTP, login, checkPlayerAuthorization, getCurrentPlayer, logOut, getAllPublicTournaments, getTournamentEvents, getTournamentById, getAllOrganizationsPublic, getTournamentsByOrganization, getEventFixtures, updateFixtureScore, searchFixtureByTeams, checkEmailsRegistered, sendForgotPassOTP, verifyForgotPassOTP, resetPassword, createGroupTeamPlayer, createIndividualTeamPlayer, getEventDetails } from '../../Controllers/Players/PlayerController.js';
 
 import { userAuthMiddleware } from '../../Middlewares/jwtAuth.js';
 
@@ -35,6 +35,9 @@ router.get('/organizations/public', getAllOrganizationsPublic);
 
 // Public: Get tournaments by organization
 router.get('/organizations/:id/tournaments', getTournamentsByOrganization);
+
+// Public: Get event details by ID
+router.get('/events/:id', getEventDetails);
 
 // Public: Get fixtures for an event
 router.get('/events/:id/fixtures', getEventFixtures);

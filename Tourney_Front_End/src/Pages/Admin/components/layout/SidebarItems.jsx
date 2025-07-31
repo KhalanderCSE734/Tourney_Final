@@ -23,6 +23,7 @@ const navItems = [
     path: "/admin/tournaments",
   },
   { text: "Users", icon: <UsersIcon />, path: "players" },
+  { text: "Analytics", icon: <AnalyticsIcon />, path: "analytics" },
   { text: "Organizations", icon: <UsersIcon />, path: "organizations" },
   // {
   //   text: "Create Tournament",

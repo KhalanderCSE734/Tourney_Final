@@ -760,4 +760,47 @@ const checkEmailsRegistered = async (req, res) => {
   }
 };
 
-export { signUp,verifyEmailWithOTP,login, checkPlayerAuthorization, getCurrentPlayer, logOut, getAllPublicTournaments, getTournamentEvents, getTournamentById, getAllOrganizationsPublic, getTournamentsByOrganization, getEventFixtures, updateFixtureScore, searchFixtureByTeams, checkEmailsRegistered,createGroupTeamPlayer,createIndividualTeamPlayer };
+// Get event details by ID
+export const getEventDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Find the event by ID
+        const event = await Event.findById(id).lean();
+        
+        if (!event) {
+            return res.status(404).json({ success: false, message: 'Event not found' });
+        }
+
+        // Get the tournament details separately
+        const tournament = await Tournament.findById(event.tournament)
+            .select('name location startDate endDate coverImage sport description status isVerified')
+            .lean();
+
+        // Combine event and tournament data
+        const eventWithTournament = {
+            ...event,
+            tournament: tournament || null
+        };
+
+        // Return the event details with tournament
+        res.status(200).json({ 
+            success: true, 
+            message: eventWithTournament
+        });
+    } catch (error) {
+        console.error('Error fetching event details:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error fetching event details',
+            error: error.message 
+        });
+    }
+};
+
+export { 
+    signUp, verifyEmailWithOTP, login, checkPlayerAuthorization, getCurrentPlayer, logOut, 
+    getAllPublicTournaments, getTournamentEvents, getTournamentById, getAllOrganizationsPublic, 
+    getTournamentsByOrganization, getEventFixtures, updateFixtureScore, searchFixtureByTeams, 
+    checkEmailsRegistered, createGroupTeamPlayer, createIndividualTeamPlayer
+};

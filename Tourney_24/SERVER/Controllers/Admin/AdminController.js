@@ -390,6 +390,57 @@ const adminController = {
 
   // ==================== PLAYER CONTROLLERS ====================
 
+  approvePlayerByAdmin: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const player = await PlayerModel.findById(id);
+      if (!player) {
+        return res.status(404).json({ success: false, message: "Player not found" });
+      }
+      if (player.isVerifiedByAdmin) {
+        return res.status(400).json({ success: false, message: "Player already approved" });
+      }
+      player.isVerifiedByAdmin = true;
+      await player.save();
+      res.status(200).json({
+        success: true,
+        message: "Player approved by admin successfully",
+        data: player,
+        approvedBy: req.admin?.name,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Server error while approving player", error: error.message });
+    }
+  },
+
+  // revoke a player's admin verification
+  revokePlayerApproval: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const player = await PlayerModel.findById(id);
+      if (!player) {
+        return res.status(404).json({ success: false, message: "Player not found" });
+      }
+      if (!player.isVerifiedByAdmin) {
+        return res.status(400).json({ success: false, message: "Player is not approved" });
+      }
+      player.isVerifiedByAdmin = false;
+      await player.save();
+      res.status(200).json({
+        success: true,
+        message: "Player approval revoked successfully",
+        data: player,
+        revokedBy: req.admin?.name,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Server error while revoking player approval", error: error.message });
+    }
+  },
+
+// ==================== PLAYER CONTROLLERS ====================
+
   createPlayer: async (req, res) => {
     try {
       const {
@@ -920,7 +971,7 @@ const adminController = {
         });
       }
       tournament.isVerified = false;
-      tournament.status = "Cancelled";
+      tournament.status = "cancelled";
 
       await tournament.save();
       res.status(200).json({
@@ -975,6 +1026,7 @@ const adminController = {
         totalOrganizations,
       });
     } catch (error) {
+      console.log("Error in getting total organizations ",error);
       res.status(500).json({
         success: false,
         message: "Server error while counting organizations",

@@ -2,13 +2,23 @@ import { Badge } from "@/Components/ui/badge";
 import { MapPin, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 
+interface Event {
+  _id: string;
+  name: string;
+  entryFee: number;
+  maxTeams: number;
+  numberOfParticipants: number;
+  eventType: string;
+  matchType: string;
+}
+
 interface TournamentCardProps {
   id: string | number;
   title: string;
   location: string;
   date: string;
   endDate?: string;
-  ageGroups: string[];
+  events?: Event[];
   imageUrl: string;
   sport: string;
   description?: string;
@@ -20,11 +30,35 @@ const TournamentCard = ({
   location,
   date,
   endDate,
-  ageGroups,
+  events = [], // Default to empty array
   imageUrl,
   sport,
   description
 }: TournamentCardProps) => {
+  // Debug log to check events data
+  console.log(`Tournament: ${title}`, { 
+    events,
+    eventsLength: events?.length,
+    firstEvent: events?.[0],
+    eventsTypes: events?.map(e => ({
+      name: e?.name,
+      type: e?.eventType,
+      entryFee: e?.entryFee,
+      participants: e?.numberOfParticipants,
+      maxTeams: e?.maxTeams
+    }))
+  });
+  
+  // Ensure events is always an array
+  const safeEvents = Array.isArray(events) ? events : [];
+  
+  // Log the first event's structure for debugging
+  if (safeEvents.length > 0) {
+    console.log('First event structure:', {
+      keys: Object.keys(safeEvents[0]),
+      values: Object.values(safeEvents[0])
+    });
+  }
   return (
     <Link
       to={`/events/${id}`}
@@ -34,7 +68,7 @@ const TournamentCard = ({
         location,
         date,
         endDate,
-        ageGroups,
+        events,
         imageUrl,
         sport,
         participants: 64,
@@ -82,17 +116,30 @@ const TournamentCard = ({
             </div>
           </div>
 
-          {/* Age Groups */}
-          <div className="flex flex-wrap gap-2 mt-2">
-            {ageGroups?.map((ageGroup, idx) => (
-              <Badge
-                key={idx}
-                variant="outline"
-                className="bg-accent/20 text-accent-foreground border-accent/30 font-medium px-3 py-1"
-              >
-                {ageGroup}
-              </Badge>
-            ))}
+          {/* Events */}
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">Events</h4>
+            {safeEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No events available</p>
+            ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {safeEvents.slice(0, 4).map((event) => (
+                <div 
+                  key={event._id} 
+                  className="bg-gradient-to-br from-red-400 to-red-500 dark:from-gray-800 dark:to-gray-900 p-3 rounded-4xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
+                >
+                  <h5 className="font-medium text-sm text-white dark:text-gray-100 text-center">
+                    {event.name || 'Event Name'}
+                  </h5>
+                </div>
+              ))}
+              {safeEvents.length > 4 && (
+                <div className="text-center text-sm text-muted-foreground col-span-full mt-2">
+                  +{safeEvents.length - 4} more events
+                </div>
+              )}
+            </div>
+            )}
           </div>
         </div>
 

@@ -4,10 +4,14 @@ import {
   verifyAdminToken,
   logAdminActivity,
 } from "../../Middlewares/authMiddleware.js";
+import analyticsRouter from "./Analytics/AnalyticsRoutes.js";
 
 const router = express.Router();
 
-// Apply admin authentication middleware to all routes
+// Keep analytics open (no auth) but secure all other admin routes
+router.use("/analytics", analyticsRouter);
+
+// Authentication middleware for remaining admin routes
 router.use(verifyAdminToken);
 router.use(logAdminActivity);
 
@@ -50,6 +54,8 @@ router.get("/players", adminController.getAllPlayers);
 
 // ⚠️ IMPORTANT: Put stats route BEFORE parameterized routes
 router.get("/players/stats", adminController.getPlayerStats);
+router.post("/players/:id/approve", adminController.approvePlayerByAdmin);
+router.post("/players/:id/revoke", adminController.revokePlayerApproval);
 
 router.get("/players/:id", adminController.getPlayerById);
 router.put("/players/:id", adminController.updatePlayer);

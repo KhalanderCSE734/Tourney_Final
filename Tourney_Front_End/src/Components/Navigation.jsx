@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { User, UserCheck } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 
 // import { useAuth } from "@/contexts/AuthContext";
 
@@ -20,7 +21,28 @@ import { AppContext } from "../Contexts/AppContext/AppContext";
 
 
 
+
+
+
 const Navigation = () => {
+
+  const [showDropdown, setShowDropdown] = useState(false);
+
+
+const dropdownRef = useRef(null);
+
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      setShowDropdown(false);
+    }
+  };
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+
 
   const { isOrganizerLoggedIn, backend_URL, setOrganizerData, setIsOrganizerLoggedIn, getAuthStatusOrganizer } = useContext(OrganizerContext);
 
@@ -145,21 +167,42 @@ const Navigation = () => {
 
 
             {
-              isPlayerLoggedIn ?
-                <div className="flex items-center space-x-2">
-                  <Button className="bg-red-500 hover:bg-primary/90 text-white cursor-pointer" onClick={() => { handleLogOut() }}>Log Out</Button>
-                  {playerData && (
-                    playerData.isAccountVerified ? (
-                      <UserCheck className={`${isHomePage ? "text-green-600" : "text-green-600"} w-7 h-7`} />
-                    ) : (
-                      <User className={`${isHomePage ? "text-white" : "text-gray-600"} w-7 h-7`} />
-                    )
-                  )}
-                </div> :
-                <Link to="/roleSelection">
-                  <Button className="bg-red-500 hover:bg-primary/90 text-white cursor-pointer">Login</Button>
-                </Link>
-            }
+  isPlayerLoggedIn ? (
+    <div className="relative" ref={dropdownRef}>
+      {/* Toggle Button */}
+      <div onClick={() => setShowDropdown(prev => !prev)} className="cursor-pointer">
+  <div className={`w-9 h-9 rounded-full flex items-center justify-center 
+    ${playerData?.isAccountVerified ? "bg-green-600" : isHomePage ? "bg-white/30" : "bg-gray-200"}`}>
+    {playerData?.isAccountVerified ? (
+      <UserCheck className="text-white w-5 h-5" />
+    ) : (
+      <User className={`${isHomePage ? "text-white" : "text-gray-600"} w-5 h-5`} />
+    )}
+  </div>
+</div>
+
+      {/* Dropdown */}
+      {showDropdown && (
+          <div className="absolute top-full mt-2 right-0 w-20 z-50 bg-white border border-gray-200 rounded shadow">
+          <Button
+            onClick={() => {
+              handleLogOut();
+              setShowDropdown(false);
+            }}
+            className="w-full bg-white text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 hover:cursor-pointer"
+          >
+            Log Out
+          </Button>
+        </div>
+      )}
+    </div>
+  ) : (
+    <Link to="/roleSelection">
+      <Button className="bg-red-500 hover:bg-primary/90 text-white cursor-pointer">Login</Button>
+    </Link>
+  )
+}
+
 
 
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import TournamentCard from "../Components/Player/TournamentCard";
 import { PlayerContext } from '../Contexts/PlayerContext/PlayerContext';
 import { ArrowRight } from "lucide-react";
+import HomeTournCard from "../Components/Player/HomeTournCard";
 
 const MAX_VISIBLE = 6;
 
@@ -47,11 +48,11 @@ const HomeTournamentsSection = () => {
   return (
     <section className="py-12 px-2 md:px-0 max-w-7xl mx-auto">
       <h2 className="text-3xl md:text-4xl font-bold mb-8">Explore Tournaments</h2>
-      <div className="flex overflow-x-auto gap-4 pb-4">
+      <div className="flex overflow-x-auto gap-4 pb-4 scroll-smooth snap-x snap-mandatory">
 
         {visibleTournaments.map(tournament => (
-          <div className="min-w-[550px] max-w-[350px] shrink-0 h-[500px]">
-            <TournamentCard {...tournament} />
+          <div className="">
+            <HomeTournCard {...tournament} />
           </div>))}
       </div>
       {tournaments.length > MAX_VISIBLE && (
