@@ -374,24 +374,82 @@ const TournamentBracket = () => {
   // Maps for quick id<->name lookup
   const idNameMap = useMemo(() => {
     if (!participants.length) return {};
-    return Object.fromEntries(
-      participants.map((p) => {
-        const display =
-          competitionType === "pairs"
-            ? p.name || p.teamName
-            : p.teamName || p.name;
-        return [p._id.toString(), display];
-      })
-    );
+    const map = {};
+    
+    participants.forEach((p) => {
+      const id = p._id.toString();
+      let displayName;
+      
+      if (competitionType === "pairs") {
+        // For pairs, use the constructed display name
+        if (Array.isArray(p.members) && p.members.length) {
+          const p1 = p.members[0]?.name || "";
+          const p2 = p.members[1]?.name || null;
+          displayName = p2 ? `${p1.trim()} & ${p2.trim()}` : `${p1.trim()} (Solo)`;
+        } else {
+          const originalName = p.name || p.teamName || "";
+          if (originalName.includes(" & ")) {
+            const [p1, p2] = originalName.split(" & ");
+            displayName = `${p1.trim()} & ${p2.trim()}`;
+          } else {
+            displayName = originalName;
+          }
+        }
+      } else {
+        // For individual, use original name
+        displayName = p.teamName || p.name;
+      }
+      
+      if (displayName) {
+        map[id] = displayName;
+      }
+    });
+    
+    return map;
   }, [participants, competitionType]);
 
-  const nameIdMap = useMemo(
-    () =>
-      Object.fromEntries(
-        participants.map((p) => [p.name || p.teamName, p._id.toString()])
-      ),
-    [participants]
-  );
+  const nameIdMap = useMemo(() => {
+    if (!participants.length) return {};
+    const map = {};
+    
+    participants.forEach((p) => {
+      const id = p._id.toString();
+      
+      // Add both name and teamName mappings
+      if (p.name) {
+        map[p.name] = id;
+      }
+      if (p.teamName && p.teamName !== p.name) {
+        map[p.teamName] = id;
+      }
+      
+      // Add display name mapping for multi-member teams
+      if (Array.isArray(p.members) && p.members.length) {
+        const p1 = p.members[0]?.name || "";
+        const p2 = p.members[1]?.name || null;
+        if (p1) {
+          const displayName = p2 ? `${p1.trim()} & ${p2.trim()}` : `${p1.trim()} (Solo)`;
+          // Only add if different from existing mappings
+          if (!map[displayName]) {
+            map[displayName] = id;
+          }
+        }
+      } else {
+        // Handle cases where team name contains " & " pattern
+        const display = p.name || p.teamName || "";
+        if (display.includes(" & ")) {
+          const [p1, p2] = display.split(" & ");
+          const displayName = `${p1.trim()} & ${p2.trim()}`;
+          // Only add if different from existing mappings
+          if (!map[displayName]) {
+            map[displayName] = id;
+          }
+        }
+      }
+    });
+    
+    return map;
+  }, [participants]);
 
   // Fetch all events for dropdown
   useEffect(() => {
@@ -489,6 +547,7 @@ const TournamentBracket = () => {
     (async () => {
       try {
         let fixtures = await fetchFixtures(tid, eventId);
+        
         // If KO fixtures have been created, focus the bracket on them; otherwise keep the RR fixtures intact
         if (currentEvent?.matchType?.includes("knockout")) {
           const koOnly = fixtures.filter(
@@ -500,13 +559,13 @@ const TournamentBracket = () => {
           fixtures = await generateFixtures(tid, eventId);
         }
         if (!fixtures.length) return;
-
         const map = {};
         const roundsObj = {};
         const initialWinners = {};
 
         fixtures.forEach((fx) => {
           const matchId = `round${fx.round}_match${fx.matchIndex}`;
+          
           map[matchId] = {
             ...fx,
             // Ensure sets data is preserved
@@ -589,7 +648,7 @@ const TournamentBracket = () => {
           });
         };
         propagateInitialWinners(arr, initialWinners);
-
+        
         setBracket(arr);
         setFixtureMap(map);
         setWinners((prev) => ({ ...prev, ...initialWinners }));
@@ -672,6 +731,7 @@ const TournamentBracket = () => {
         if (newWinners[matchId]) clearSubsequentWinners(match, newWinners);
         newWinners[matchId] = winnerName;
       }
+      
       setWinners(newWinners);
       updateNextRound(match, newWinners[matchId] || null);
 
